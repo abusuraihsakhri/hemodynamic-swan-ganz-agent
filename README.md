@@ -1,9 +1,7 @@
 # Hemodynamic Swan Ganz Agent
 
-> **Domain:** Cardiovascular Medicine & Hemodynamic Analytics  
-> **Reference Guidelines & Standards:** `AHA/ACC Practice Guidelines & ESC Clinical Standards`
-
-<div align="center">
+> **Domain:** Cardiovascular Medicine & Hemodynamic Analytics
+> **Reference Guidelines:** AHA/ACC Practice Guidelines & ESC Clinical Standards / Surviving Sepsis Campaign 2021 & Sepsis-3
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
@@ -12,93 +10,133 @@
 ![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-</div>
+---
+
+## What It Does
+
+**Hemodynamic Swan Ganz Agent** is an analytical platform implementing Fick Cardiac Index calculations, SVR computation, and shock profile classification for critical care environments. It uses a multi-worker agent architecture to evaluate hemodynamic parameters against clinical guidelines.
 
 ---
 
-## 📖 What It Does
+## Architecture
 
-**Hemodynamic Swan Ganz Agent** is an advanced analytical and computational platform implementing Fick Cardiac Index, SVR & Shock Profile Classifier.
+### Core Components
+
+| Module | Description |
+|:-------|:------------|
+| `agents/` | Core agent orchestrator with PHI guard, HMAC-SHA256 audit trail, and specialized workers |
+| `hemodynamic_swan_ganz_agent/` | Clinical sub-package with domain engine and REST server |
+| `enrichment.py` | Feature enrichment engines (Dynamic, Vasopressor, Right Heart, Pulmonary, Weaning, Cardiac, Hemodynamic) |
+| `cli.py` | Main CLI entry point (audit, chat, batch, serve commands) |
+| `simulator.py` | High-throughput stress testing and adversarial PHI audit tool |
+
+### Specialized Workers
+
+- **InvariantQCWorker** — Primary metric threshold and boundary auditor
+- **SafetyEscalationWorker** — Safety interlock and STAT escalation detector
+- **ProtocolConformanceWorker** — Status descriptor concordance checker
 
 ---
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+## Quickstart
 
-### 🔬 Core Algorithmic & Evaluation Engines
+### Installation
 
-- **`Severity`** — dedicated module for severity evaluation and state verification.
-- **`DomainKnowledgeRegistry`**: Enterprise domain rules, guideline matrices, and evidence benchmarks.
-- **`AgentAlert`** — dedicated module for agent alert evaluation and state verification.
-- **`FickCardiacOutputAgent`**: Specialized Sub-Agent 1 for hemodynamic-swan-ganz-agent
-- **`SVRCalculationAgent`**: Specialized Sub-Agent 2 for hemodynamic-swan-ganz-agent
-- **`ShockProfileMatcherAgent`**: Specialized Sub-Agent 3 for hemodynamic-swan-ganz-agent
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### 1. Guided Interactive Mode
 ```bash
-python cli.py
+pip install fastapi uvicorn pydantic pytest
 ```
 
-### 2. Direct Parameterized Evaluation
+### Run CLI Audit
+
 ```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
+python cli.py audit --task-id CASE-001 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
 ```
 
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
+### Interactive Chat
 
-### Input Data Schema
+```bash
+python cli.py chat "Explain hemodynamic parameters"
+```
 
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `case_id` | Parameter / observation metric | Required |
-| `patient_synthetic_id` | Parameter / observation metric | Required |
-| `metric_primary` | Parameter / observation metric | Required |
-| `metric_secondary` | Parameter / observation metric | Required |
-| `is_stat` | Parameter / observation metric | Required |
-| `status_flag` | Parameter / observation metric | Required |
+### Batch CSV Processing
 
----
+```bash
+python cli.py batch -i sample.csv -o results.csv
+```
 
-## 🛡️ Security & Enterprise Architecture
+### Start REST API Server
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+```bash
+python cli.py serve --host 127.0.0.1 --port 8000
+```
+
+### Run Simulation
+
+```bash
+python simulator.py 1000
+```
 
 ---
 
-## 🧪 Testing & Verification
+## API Endpoints
 
-Run the automated test suite:
+| Endpoint | Method | Description |
+|:---------|:-------|:------------|
+| `/health` | GET | Health and service metadata |
+| `/metrics` | GET | Prometheus operational metrics |
+| `/api/audit` | POST | Submit task payload for multi-worker evaluation |
+| `/api/chat` | POST | Query air-gapped supervisory assistant |
+| `/api/audit/logs` | GET | Retrieve HMAC-signed audit trail with integrity verification |
+
+---
+
+## Security Features
+
+- **Zero-PHI Outbound Guard:** AST and regex inspection blocking SSNs, MRNs, phone numbers, emails, DOBs, and patient names
+- **HMAC-SHA256 Tamper-Evident Audit Trail:** Cryptographically chained log entries for every evaluation
+- **Path Traversal Protection:** Batch CLI validates all file paths stay within working directory
+- **Input Validation:** All metrics validated as finite numbers; identifiers sanitized and non-empty
+
+### Audit Key Configuration
+
+The HMAC audit key resolves in priority order:
+1. Explicit `secret_key` argument to `AuditTrail()`
+2. `AUDIT_SECRET_KEY` environment variable
+3. Auto-generated cryptographically secure random key (per session)
+
+For production deployments, always set `AUDIT_SECRET_KEY`:
+```bash
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+```
+
+---
+
+## Testing
 
 ```bash
 pytest -v
 ```
 
-Execute high-throughput batch simulation benchmarks:
+The test suite covers:
+- PHI guard enforcement (SSN, MRN, phone, email patterns)
+- Specialized worker threshold detection
+- Supervisor consensus and audit integrity
+- CLI command execution
+- Enrichment engine behavior
+
+---
+
+## Docker Deployment
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+docker compose up --build
+# Or manually:
+docker build -t hemodynamic-swan-ganz-agent .
+docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secret hemodynamic-swan-ganz-agent
 ```
 
 ---
 
-## 🐳 Container Deployment
+## License
 
-```bash
-docker build -t hemodynamic-swan-ganz-agent .
-docker run -p 8000:8000 hemodynamic-swan-ganz-agent
-```
+MIT License — see [LICENSE](LICENSE) for details.

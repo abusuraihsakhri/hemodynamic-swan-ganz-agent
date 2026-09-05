@@ -12,12 +12,14 @@ import argparse
 import csv
 import datetime
 import json
+import os
 import sys
 import uuid
-from typing import Dict, Any, List, Optional
+from enum import Enum
+from typing import Dict, Any, List
 
 
-class Severity(str):
+class Severity(str, Enum):
     INFO = "INFO"
     ADVISORY = "ADVISORY"
     WARNING = "WARNING"
@@ -266,7 +268,19 @@ def main(argv=None):
         return 0
 
     if args.command == "batch":
-        with open(args.input, mode="r", encoding="utf-8-sig") as f:
+        input_path = os.path.realpath(os.path.abspath(args.input))
+        output_path = os.path.realpath(os.path.abspath(args.output))
+        cwd = os.path.realpath(os.getcwd())
+        if not input_path.startswith(cwd + os.sep):
+            print(f"Security error: input path '{args.input}' resolves outside working directory")
+            return 1
+        if not output_path.startswith(cwd + os.sep):
+            print(f"Security error: output path '{args.output}' resolves outside working directory")
+            return 1
+        if not os.path.isfile(input_path):
+            print(f"Input file not found: {args.input}")
+            return 1
+        with open(input_path, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
@@ -282,7 +296,7 @@ def main(argv=None):
             row_dict["consensus_summary"] = dossier["consensus_summary"]
             out_rows.append(row_dict)
 
-        with open(args.output, mode="w", encoding="utf-8", newline="") as f:
+        with open(output_path, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)
             writer.writeheader()
             writer.writerows(out_rows)

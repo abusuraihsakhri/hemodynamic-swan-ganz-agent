@@ -25,3 +25,9 @@ hemodynamic-swan-ganz-engine = "hemodynamic_swan_ganz_agent.cli:main"
 [project.urls]
 Homepage = "https://github.com/abusuraihsakhri/hemodynamic-swan-ganz-engine"
 Repository = "https://github.com/abusuraihsakhri/hemodynamic-swan-ganz-engine.git"
+
+[tool.pytest.ini_options]
+testpaths = [".", "tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test"]
+python_functions = ["test_*"]
