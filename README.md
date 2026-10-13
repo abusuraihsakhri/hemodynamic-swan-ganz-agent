@@ -47,7 +47,7 @@ python cli.py batch -i sample.csv -o results.csv
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
-For numeric hemodynamics through the API:
+Both API implementations (`agents.api:app` and the legacy package server) expose `/api/hemodynamics`. For numeric hemodynamics through the API:
 
 ```bash
 curl -s http://127.0.0.1:8000/api/hemodynamics \
@@ -57,7 +57,7 @@ curl -s http://127.0.0.1:8000/api/hemodynamics \
 
 The legacy audit API is separate: its generic `primary_metric` / `secondary_metric` thresholds must **not** be interpreted as specific physiologic thresholds or guideline recommendations. The chat endpoint is a deterministic mock, not a working external language-model service. The API also exposes automatically generated documentation at `/docs`.
 
-To run in Docker: `docker compose up --build`. If audit records must be verifiable after process restarts, provide a stable `AUDIT_SECRET_KEY` through your deployment environment; no default static key is included.
+To run in Docker: `docker compose up --build` (the API binds to local loopback by default). If audit records must be verifiable after process restarts, provide a stable `AUDIT_SECRET_KEY` through your deployment environment; no default static key is included.
 
 ## Privacy and security
 

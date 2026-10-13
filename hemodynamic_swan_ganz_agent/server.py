@@ -4,17 +4,18 @@ FastAPI REST Application & Webhooks for SwanGanz Sentinel: Pulmonary Artery Cath
 from typing import Dict, Any, Optional
 from .models import ClinicalCasePayload
 from .agents import PACatheterCoordinator
+from .hemodynamics import calculate_hemodynamics
 
 coordinator = PACatheterCoordinator()
 
 def create_app():
     try:
-        from fastapi import FastAPI
+        from fastapi import FastAPI, HTTPException
         from pydantic import BaseModel
 
         app = FastAPI(
             title="SwanGanz Sentinel: Pulmonary Artery Catheter Hemodynamic & Shock Classifier",
-            description="Calculates cardiac index (CI), systemic vascular resistance (SVR), pulmonary vascular resistance (PVR), and classifies Cardiogenic vs Septic vs Hypovolemic shock.",
+            description="Educational Swan–Ganz hemodynamics and separate legacy generic case audit. No diagnostic shock classification.",
             version="2.0.0-PRO",
         )
 
@@ -30,6 +31,24 @@ def create_app():
 
         class ChatRequest(BaseModel):
             query: str
+
+        class HemodynamicRequest(BaseModel):
+            cardiac_output_l_min: float
+            body_surface_area_m2: float
+            map_mm_hg: float
+            rap_mm_hg: float
+            mean_pap_mm_hg: float
+            pcwp_mm_hg: float
+            oxygen_consumption_ml_min: Optional[float] = None
+            arterial_oxygen_content_ml_dl: Optional[float] = None
+            mixed_venous_oxygen_content_ml_dl: Optional[float] = None
+
+        @app.post("/api/hemodynamics")
+        def api_hemodynamics(payload: HemodynamicRequest):
+            try:
+                return calculate_hemodynamics(**payload.model_dump())
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         @app.get("/health")
         def health():

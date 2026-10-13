@@ -16,7 +16,7 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Hemodynamic Swan Ganz Agent API",
-    description="Enterprise Distributed Component Platform (Cardiology & Intensive Care Systems)",
+    description="Educational Swan–Ganz equations and legacy generic threshold auditing",
     version="3.0.0-ENTERPRISE",
 )
 
@@ -68,7 +68,7 @@ def metrics():
     return {
         "dossiers_processed_total": len(supervisor.dossier_registry),
         "audit_blocks_total": len(AuditLogger.get_trail()),
-        "system_status": "NOMINAL_OPTIMAL"
+        "system_status": "RUNNING"
     }
 
 

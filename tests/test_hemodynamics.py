@@ -64,3 +64,14 @@ def test_api_contract():
     assert response.status_code == 200
     assert response.json()["pvr_wood_units"] == pytest.approx(2)
     assert client.post("/api/hemodynamics", json={**BASE, "cardiac_output_l_min": 0}).status_code == 422
+
+
+def test_alternate_package_api_exposes_same_equations():
+    from fastapi.testclient import TestClient
+    from hemodynamic_swan_ganz_agent.server import create_app
+    client = TestClient(create_app())
+    response = client.post("/api/hemodynamics", json=BASE)
+    assert response.status_code == 200
+    assert response.json()["svr_dyn_s_cm5"] == pytest.approx(1280)
+    bad = client.post("/api/hemodynamics", json={**BASE, "mean_pap_mm_hg": 10})
+    assert bad.status_code == 422
