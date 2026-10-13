@@ -2,6 +2,9 @@
 FastAPI REST Application & Webhooks for SwanGanz Sentinel: Pulmonary Artery Catheter Hemodynamic & Shock Classifier.
 """
 from typing import Dict, Any, Optional
+import json
+import math
+from agents.base import PHIGuard, SecurityException
 from .models import ClinicalCasePayload
 from .agents import PACatheterCoordinator
 from .hemodynamics import calculate_hemodynamics
@@ -11,7 +14,7 @@ coordinator = PACatheterCoordinator()
 def create_app():
     try:
         from fastapi import FastAPI, HTTPException
-        from pydantic import BaseModel
+        from pydantic import BaseModel, field_validator
 
         app = FastAPI(
             title="SwanGanz Sentinel: Pulmonary Artery Catheter Hemodynamic & Shock Classifier",
@@ -28,6 +31,13 @@ def create_app():
             is_stat: bool = True
             clinical_notes: str = ""
             biomarkers: Dict[str, Any] = {}
+
+            @field_validator("primary_metric", "secondary_metric")
+            @classmethod
+            def finite_metrics(cls, value: float) -> float:
+                if not math.isfinite(value):
+                    raise ValueError("Measurement must be finite")
+                return value
 
         class ChatRequest(BaseModel):
             query: str
@@ -56,6 +66,12 @@ def create_app():
 
         @app.post("/api/audit")
         def api_audit(req: AuditRequest):
+            try:
+                for text in (req.case_id, req.patient_synthetic_id, req.status_flag, req.clinical_notes):
+                    PHIGuard.assert_no_phi(text)
+                PHIGuard.assert_no_phi(json.dumps(req.biomarkers, ensure_ascii=False))
+            except SecurityException as exc:
+                raise HTTPException(status_code=400, detail="Sensitive identifier detected; use synthetic data") from exc
             payload = ClinicalCasePayload(
                 case_id=req.case_id,
                 patient_synthetic_id=req.patient_synthetic_id,
@@ -70,6 +86,10 @@ def create_app():
 
         @app.post("/api/chat")
         def api_chat(req: ChatRequest):
+            try:
+                PHIGuard.assert_no_phi(req.query)
+            except SecurityException as exc:
+                raise HTTPException(status_code=400, detail="Sensitive identifier detected; use synthetic data") from exc
             return {"response": coordinator.query_supervisory_chat(req.query)}
 
         return app

@@ -175,3 +175,13 @@ def test_batch_skips_sensitive_row_without_echo(tmp_path, monkeypatch, capsys):
     )
     assert main(["batch", "-i", "input.csv", "-o", "out.csv"]) == 0
     assert "MRN-987654" not in capsys.readouterr().out
+
+
+def test_alternate_package_csv_flag_parser():
+    from hemodynamic_swan_ganz_agent.cli import _parse_csv_bool, _metric
+    assert _parse_csv_bool("False") is False
+    assert _parse_csv_bool("TRUE") is True
+    with pytest.raises(ValueError):
+        _parse_csv_bool("maybe")
+    with pytest.raises(ValueError):
+        _metric(float("nan"))

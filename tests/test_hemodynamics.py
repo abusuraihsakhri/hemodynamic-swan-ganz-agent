@@ -75,3 +75,17 @@ def test_alternate_package_api_exposes_same_equations():
     assert response.json()["svr_dyn_s_cm5"] == pytest.approx(1280)
     bad = client.post("/api/hemodynamics", json={**BASE, "mean_pap_mm_hg": 10})
     assert bad.status_code == 422
+
+
+def test_alternate_api_rejects_sensitive_and_nonfinite_audit_input():
+    from fastapi.testclient import TestClient
+    from hemodynamic_swan_ganz_agent.server import create_app
+    client = TestClient(create_app())
+    sensitive = client.post("/api/audit", json={
+        "case_id": "CASE-01",
+        "patient_synthetic_id": "MRN-987654",
+        "primary_metric": 12,
+    })
+    assert sensitive.status_code == 400
+    invalid = client.post("/api/audit", json={"primary_metric": "NaN"})
+    assert invalid.status_code == 422

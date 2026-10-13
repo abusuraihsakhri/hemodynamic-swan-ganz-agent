@@ -36,7 +36,7 @@ jobs:
         from agents.base import PHIGuard, AuditLogger
         import pytest
         assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
+        print('Audit chain initialization check passed')
         "
 
     - name: Check Python compilation

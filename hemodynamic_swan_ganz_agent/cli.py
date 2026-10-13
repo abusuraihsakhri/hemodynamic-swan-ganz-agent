@@ -6,10 +6,30 @@ import csv
 import json
 import os
 import sys
+import math
+from agents.base import PHIGuard, SecurityException
 from .models import ClinicalCasePayload
 from .agents import PACatheterCoordinator
 
 coordinator = PACatheterCoordinator()
+
+
+def _parse_csv_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    if normalized in {"0", "false", "no", "n", ""}:
+        return False
+    raise ValueError("Invalid Boolean flag")
+
+
+def _metric(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("Metric must be finite")
+    return number
 
 
 def main(argv=None):
@@ -86,18 +106,24 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_status", "total_alerts", "stat_critical_alerts", "consensus_summary"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_status", "total_alerts", "stat_critical_alerts", "consensus_summary"]))
         out_rows = []
-        for r in rows:
-            case = ClinicalCasePayload(
-                case_id=r.get("case_id", "CASE-01"),
-                patient_synthetic_id=r.get("patient_synthetic_id", "SYNTH-01"),
-                primary_metric=float(r.get("metric_primary", r.get("primary_metric", 15.0))),
-                secondary_metric=float(r.get("metric_secondary", r.get("secondary_metric", 5.0))),
-                status_flag=r.get("status_flag", r.get("status_text", "NORMAL")),
-                is_stat=bool(r.get("is_stat", r.get("critical_flag", False))),
-            )
-            dossier = coordinator.process_case(case)
+        for index, r in enumerate(rows, start=2):
+            try:
+                case = ClinicalCasePayload(
+                    case_id=r.get("case_id") or "CASE-01",
+                    patient_synthetic_id=r.get("patient_synthetic_id") or "SYNTH-01",
+                    primary_metric=_metric(r.get("metric_primary") or r.get("primary_metric") or 15.0),
+                    secondary_metric=_metric(r.get("metric_secondary") or r.get("secondary_metric") or 5.0),
+                    status_flag=r.get("status_flag") or r.get("status_text") or "NORMAL",
+                    is_stat=_parse_csv_bool(r.get("is_stat", r.get("critical_flag", False))),
+                )
+                for text in (case.case_id, case.patient_synthetic_id, case.status_flag):
+                    PHIGuard.assert_no_phi(text)
+                dossier = coordinator.process_case(case)
+            except (ValueError, TypeError, SecurityException):
+                print(f"Skipping invalid or unsafe CSV row {index}")
+                continue
             row_dict = dict(r)
             row_dict["overall_status"] = dossier["overall_status"]
             row_dict["total_alerts"] = dossier["total_alerts"]
