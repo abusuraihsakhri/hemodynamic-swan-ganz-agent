@@ -35,3 +35,7 @@ testpaths = [".", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test"]
 python_functions = ["test_*"]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "hemodynamic_swan_ganz_agent*"]
+namespaces = false
