@@ -154,9 +154,9 @@ def test_batch_uses_synthetic_aliases_and_real_boolean_values(tmp_path, monkeypa
     from cli import main
     monkeypatch.chdir(tmp_path)
     (tmp_path / "input.csv").write_text(
-        "case_id,patient_synthetic_id,metric_primary,metric_secondary,is_stat,status_flag\\n"
-        "CASE-A,SYNTH-01,10,3,False,NORMAL\\n"
-        "CASE-B,SYNTH-02,10,3,True,NORMAL\\n"
+        "case_id,patient_synthetic_id,metric_primary,metric_secondary,is_stat,status_flag\n"
+        "CASE-A,SYNTH-01,10,3,False,NORMAL\n"
+        "CASE-B,SYNTH-02,10,3,True,NORMAL\n"
     )
     assert main(["batch", "-i", "input.csv", "-o", "out.csv"]) == 0
     with (tmp_path / "out.csv").open(newline="") as handle:
@@ -170,8 +170,8 @@ def test_batch_skips_sensitive_row_without_echo(tmp_path, monkeypatch, capsys):
     from cli import main
     monkeypatch.chdir(tmp_path)
     (tmp_path / "input.csv").write_text(
-        "task_id,target_identifier,primary_metric,secondary_metric\\n"
-        "CASE-1,Patient MRN-987654,8,1\\n"
+        "task_id,target_identifier,primary_metric,secondary_metric\n"
+        "CASE-1,Patient MRN-987654,8,1\n"
     )
     assert main(["batch", "-i", "input.csv", "-o", "out.csv"]) == 0
     assert "MRN-987654" not in capsys.readouterr().out
