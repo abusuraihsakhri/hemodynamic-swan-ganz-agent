@@ -8,7 +8,7 @@ import os
 import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
+from agents.base import AuditLogger, SecurityException
 
 supervisor = SystemSupervisor(model_provider="mock")
 
@@ -112,7 +112,7 @@ def main(argv=None):
 
         out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
-        for r in rows:
+        for index, r in enumerate(rows, start=2):
             try:
                 payload = SystemTaskPayload(
                     task_id=r.get("task_id") or r.get("case_id") or "TASK-01",
@@ -122,10 +122,10 @@ def main(argv=None):
                     status_descriptor=r.get("status_descriptor") or r.get("status_flag") or "NOMINAL",
                     is_critical_flag=_parse_csv_bool(r.get("is_critical_flag", r.get("is_stat", False))),
                 )
-            except (ValueError, TypeError) as e:
-                print(f"Skipping invalid row: {type(e).__name__}: {e}")
+                dossier = supervisor.process_task(payload)
+            except (ValueError, TypeError, SecurityException):
+                print(f"Skipping invalid or unsafe CSV row {index}")
                 continue
-            dossier = supervisor.process_task(payload)
             row_dict = dict(r)
             row_dict["overall_urgency"] = dossier.overall_urgency.value
             row_dict["integrity_status"] = dossier.integrity_status.value

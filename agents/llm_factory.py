@@ -11,7 +11,7 @@ class MockLLM:
 
     def invoke(self, prompt: str) -> str:
         PHIGuard.assert_no_phi(prompt)
-        return f"[{self.system_name} Mock Interface]: No clinical analysis performed. Query received: '{prompt[:60]}...'."
+        return f"[{self.system_name} Mock Interface]: No clinical analysis performed; no external language model is connected."
 
 
 class LLMFactory:

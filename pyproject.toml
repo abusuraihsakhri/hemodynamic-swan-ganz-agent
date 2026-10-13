@@ -8,10 +8,9 @@ version = "2.0.0"
 description = "SwanGanz Sentinel: Pulmonary Artery Catheter Hemodynamic & Shock Classifier"
 readme = "README.md"
 authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
-license = { text = "MIT" }
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Medical Science Apps",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
