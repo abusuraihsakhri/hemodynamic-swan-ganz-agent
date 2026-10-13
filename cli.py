@@ -24,6 +24,17 @@ def _safe_resolve_path(path_str: str, must_exist: bool = False) -> str:
     return resolved
 
 
+def _parse_csv_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    if normalized in {"0", "false", "no", "n", ""}:
+        return False
+    raise ValueError("Critical flag must be true/false, yes/no or 1/0")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="hemodynamic-swan-ganz-agent", description="Hemodynamic Swan Ganz Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -99,20 +110,20 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
         for r in rows:
             try:
                 payload = SystemTaskPayload(
-                    task_id=r.get("task_id", "TASK-01"),
-                    target_identifier=r.get("target_identifier", "TARGET-01"),
-                    primary_metric=float(r.get("primary_metric", 15.0)),
-                    secondary_metric=float(r.get("secondary_metric", 5.0)),
-                    status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                    is_critical_flag=bool(r.get("is_critical_flag", False)),
+                    task_id=r.get("task_id") or r.get("case_id") or "TASK-01",
+                    target_identifier=r.get("target_identifier") or r.get("patient_synthetic_id") or "TARGET-01",
+                    primary_metric=float(r.get("primary_metric") or r.get("metric_primary") or 15.0),
+                    secondary_metric=float(r.get("secondary_metric") or r.get("metric_secondary") or 5.0),
+                    status_descriptor=r.get("status_descriptor") or r.get("status_flag") or "NOMINAL",
+                    is_critical_flag=_parse_csv_bool(r.get("is_critical_flag", r.get("is_stat", False))),
                 )
             except (ValueError, TypeError) as e:
-                print(f"Skipping invalid row {r}: {e}")
+                print(f"Skipping invalid row: {type(e).__name__}: {e}")
                 continue
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)

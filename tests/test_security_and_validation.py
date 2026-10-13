@@ -117,3 +117,33 @@ class TestPHIGuardComprehensive:
         result = PHIGuard.redact_phi("Patient MRN-12345 tested")
         assert "REDACTED_IDENTIFIER" in result
         assert "MRN" not in result or "12345" not in result
+
+def test_hmac_detects_signature_tamper():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.logs[0]["payload_hash"] = "0" * 64
+    assert trail.verify_integrity() is False
+
+
+def test_hmac_detects_recomputed_link_without_secret():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.log("actor", "tier", "EVENT", {"x": 2})
+    trail.logs[0]["current_hash"] = "0" * 64
+    trail.logs[1]["prev_hash"] = "0" * 64
+    assert trail.verify_integrity() is False
+
+
+def test_audit_export_is_defensive_copy():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.get_trail()[0]["current_hash"] = "changed"
+    assert trail.verify_integrity() is True
+
+
+def test_batch_bool_decoding():
+    from cli import _parse_csv_bool
+    assert _parse_csv_bool("False") is False
+    assert _parse_csv_bool("true") is True
+    with pytest.raises(ValueError):
+        _parse_csv_bool("not-a-bool")
