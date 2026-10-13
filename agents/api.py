@@ -1,7 +1,7 @@
 """
 FastAPI REST API Server for Hemodynamic Swan Ganz Agent.
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
@@ -32,9 +32,9 @@ class HemodynamicRequest(BaseModel):
     rap_mm_hg: float
     mean_pap_mm_hg: float
     pcwp_mm_hg: float
-    oxygen_consumption_ml_min: float | None = None
-    arterial_oxygen_content_ml_dl: float | None = None
-    mixed_venous_oxygen_content_ml_dl: float | None = None
+    oxygen_consumption_ml_min: Optional[float] = None
+    arterial_oxygen_content_ml_dl: Optional[float] = None
+    mixed_venous_oxygen_content_ml_dl: Optional[float] = None
 
 
 WEB_DIR = Path(__file__).resolve().parents[1] / "web"
