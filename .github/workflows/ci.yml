@@ -24,17 +24,28 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
+        pip install -e ".[server,test]"
 
     - name: Run Pytest Suite
       run: |
         pytest -v
 
-    - name: Security SAST & Zero-PHI Audit
+    - name: HMAC audit-chain smoke check
       run: |
         python -c "
         from agents.base import PHIGuard, AuditLogger
         import pytest
         assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
+        print('Audit chain initialization check passed')
         "
+
+    - name: Check Python compilation
+      run: python -m compileall -q agents hemodynamic_swan_ganz_agent
+
+    - name: Test static calculator in Node
+      run: |
+        node --check web/calculator.mjs
+        node --test tests/web.test.mjs
+
+    - name: Verify Python wheel build
+      run: python -m pip wheel . --no-deps --wheel-dir /tmp/swan-wheels

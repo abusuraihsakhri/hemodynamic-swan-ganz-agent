@@ -8,7 +8,7 @@ import os
 import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
+from agents.base import AuditLogger, SecurityException
 
 supervisor = SystemSupervisor(model_provider="mock")
 
@@ -22,6 +22,17 @@ def _safe_resolve_path(path_str: str, must_exist: bool = False) -> str:
     if must_exist and not os.path.isfile(resolved):
         raise FileNotFoundError(f"Input file not found: {path_str}")
     return resolved
+
+
+def _parse_csv_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    if normalized in {"0", "false", "no", "n", ""}:
+        return False
+    raise ValueError("Critical flag must be true/false, yes/no or 1/0")
 
 
 def main(argv=None):
@@ -99,22 +110,22 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
-        for r in rows:
+        for index, r in enumerate(rows, start=2):
             try:
                 payload = SystemTaskPayload(
-                    task_id=r.get("task_id", "TASK-01"),
-                    target_identifier=r.get("target_identifier", "TARGET-01"),
-                    primary_metric=float(r.get("primary_metric", 15.0)),
-                    secondary_metric=float(r.get("secondary_metric", 5.0)),
-                    status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                    is_critical_flag=bool(r.get("is_critical_flag", False)),
+                    task_id=r.get("task_id") or r.get("case_id") or "TASK-01",
+                    target_identifier=r.get("target_identifier") or r.get("patient_synthetic_id") or "TARGET-01",
+                    primary_metric=float(r.get("primary_metric") or r.get("metric_primary") or 15.0),
+                    secondary_metric=float(r.get("secondary_metric") or r.get("metric_secondary") or 5.0),
+                    status_descriptor=r.get("status_descriptor") or r.get("status_flag") or "NOMINAL",
+                    is_critical_flag=_parse_csv_bool(r.get("is_critical_flag", r.get("is_stat", False))),
                 )
-            except (ValueError, TypeError) as e:
-                print(f"Skipping invalid row {r}: {e}")
+                dossier = supervisor.process_task(payload)
+            except (ValueError, TypeError, SecurityException):
+                print(f"Skipping invalid or unsafe CSV row {index}")
                 continue
-            dossier = supervisor.process_task(payload)
             row_dict = dict(r)
             row_dict["overall_urgency"] = dossier.overall_urgency.value
             row_dict["integrity_status"] = dossier.integrity_status.value

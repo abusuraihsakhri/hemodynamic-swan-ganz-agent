@@ -117,3 +117,71 @@ class TestPHIGuardComprehensive:
         result = PHIGuard.redact_phi("Patient MRN-12345 tested")
         assert "REDACTED_IDENTIFIER" in result
         assert "MRN" not in result or "12345" not in result
+
+def test_hmac_detects_signature_tamper():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.logs[0]["payload_hash"] = "0" * 64
+    assert trail.verify_integrity() is False
+
+
+def test_hmac_detects_recomputed_link_without_secret():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.log("actor", "tier", "EVENT", {"x": 2})
+    trail.logs[0]["current_hash"] = "0" * 64
+    trail.logs[1]["prev_hash"] = "0" * 64
+    assert trail.verify_integrity() is False
+
+
+def test_audit_export_is_defensive_copy():
+    trail = AuditTrail(secret_key="test")
+    trail.log("actor", "tier", "EVENT", {"x": 1})
+    trail.get_trail()[0]["current_hash"] = "changed"
+    assert trail.verify_integrity() is True
+
+
+def test_batch_bool_decoding():
+    from cli import _parse_csv_bool
+    assert _parse_csv_bool("False") is False
+    assert _parse_csv_bool("true") is True
+    with pytest.raises(ValueError):
+        _parse_csv_bool("not-a-bool")
+
+
+def test_batch_uses_synthetic_aliases_and_real_boolean_values(tmp_path, monkeypatch):
+    import csv
+    from cli import main
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "input.csv").write_text(
+        "case_id,patient_synthetic_id,metric_primary,metric_secondary,is_stat,status_flag\n"
+        "CASE-A,SYNTH-01,10,3,False,NORMAL\n"
+        "CASE-B,SYNTH-02,10,3,True,NORMAL\n"
+    )
+    assert main(["batch", "-i", "input.csv", "-o", "out.csv"]) == 0
+    with (tmp_path / "out.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 2
+    assert rows[0]["overall_urgency"] == "ROUTINE"
+    assert rows[1]["overall_urgency"] == "CRITICAL_STAT_PANIC"
+
+
+def test_batch_skips_sensitive_row_without_echo(tmp_path, monkeypatch, capsys):
+    from cli import main
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "input.csv").write_text(
+        "task_id,target_identifier,primary_metric,secondary_metric\n"
+        "CASE-1,Patient MRN-987654,8,1\n"
+    )
+    assert main(["batch", "-i", "input.csv", "-o", "out.csv"]) == 0
+    assert "MRN-987654" not in capsys.readouterr().out
+
+
+def test_alternate_package_csv_flag_parser():
+    from hemodynamic_swan_ganz_agent.cli import _parse_csv_bool, _metric
+    assert _parse_csv_bool("False") is False
+    assert _parse_csv_bool("TRUE") is True
+    with pytest.raises(ValueError):
+        _parse_csv_bool("maybe")
+    with pytest.raises(ValueError):
+        _metric(float("nan"))
